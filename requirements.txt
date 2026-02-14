@@ -1,0 +1,9 @@
+youtube-transcript-api
+gspread
+oauth2client
+yt-dlp
+faster-whisper
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+python-dotenv

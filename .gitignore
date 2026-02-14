@@ -1,0 +1,20 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Secrets & Config
+.env
+*.json
+! .env.example
+
+# Local Data/Downloads
+temp_audio/
+downloads/
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
