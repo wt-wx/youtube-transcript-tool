@@ -1,6 +1,6 @@
-# YouTube Transcript Automation Factory 🚀
+# YouTube Content Automation Factory 🚀
 
-这是一个工业级的 YouTube 内容自动化流水线。它采用分布式架构，能够高效地处理大规模视频字幕抓取、语音识别（ASR）以及数据回填。
+这是一个工业级的 YouTube 内容自动化生产线。它采用分布式架构，能够高效地处理大规模频道存量视频的字幕抓取、语音识别（ASR）以及多平台内容转化。
 
 ## 🏗️ 分布式架构设计
 
@@ -17,78 +17,103 @@
 - **高精度 AI 转录**：基于 `Faster-Whisper` 的 `large-v3` 或 `medium` 模型，针对中文优化了 `initial_prompt`。
 - **云端持久化**：支持通过 Google Drive 或 Rclone 挂载点进行音频中转，无需 VPS 长期占用硬盘。
 
-## 🛠️ 环境要求
+## 🛠️ 环境要求与安装
 
-- Python 3.10+
-- **FFmpeg** (必须安装，用于音频提取)
-- Google Cloud 服务账号凭据 (`credentials.json`)
-- Rclone (若需要多节点自动同步)
+### 1. 系统依赖 (LA/HK 两个节点均需安装)
+- **Python 3.10+**
+- **FFmpeg**: 核心组件。LA 节点用于提取音轨，HK 节点用于语音解码。
+  ```bash
+  # Ubuntu/Debian
+  sudo apt update && sudo apt install ffmpeg -y
+  ```
+
+### 2. Python 依赖分装
+你可以根据节点角色选择性安装，也可以全量安装：
+
+- **LA 节点 (抓取)**:
+  `pip install yt-dlp gspread oauth2client google-api-python-client python-dotenv`
+- **HK 节点 (转录)**:
+  `pip install faster-whisper gspread oauth2client python-dotenv`
 
 ## 📦 快速开始
 
-### 1. 安装依赖
+### 1. Google 项目与 Drive 配置
+1. **获取凭据**：在 Google Cloud 下载服务账号密钥，重命名为 `credentials.json` 放入项目根目录。
+2. **开启 API**：确保在 GCP Console 开启了 **Sheets API** 和 **Drive API**。
+3. **设置中转文件夹**：
+   - 在 Google Drive 创建文件夹（如 `youtube_factory`）。
+   - **共享**：将该文件夹共享给服务账号的 Email，权限设为 **“编辑者”**。
+   - **获取 ID**：复制文件夹 URL 中的最后一串字符。
 
-```bash
-pip install youtube-transcript-api gspread oauth2client yt-dlp faster-whisper google-api-python-client google-auth-httplib2 google-auth-oauthlib python-dotenv
-```
-
-### 2. Google 项目配置
-
-1. 在 Google Cloud Console 下载密钥并命名为 `credentials.json`。
-2. 开启 Google Sheets 和 Google Drive API。
-3. 将表格共享给服务账号的 Email 地址。
-
-### 3. 环境配置 (.env)
-
-根据节点角色在根目录配置 `.env`：
-
+### 2. 环境配置 (.env)
+在根目录创建 `.env` 文件：
 ```env
-# 基础配置
 CREDENTIALS_FILE=credentials.json
 SPREADSHEET_NAME=YouTube_Blogger_Automation
 
-# Rclone 挂载路径 (关键：确保 LA 和 HK 节点指向同一个同步文件夹)
-RCLONE_MOUNT_PATH=/mnt/gdrive/youtube_audio
+# 填入你刚才准备的文件夹 ID
+DRIVE_FOLDER_ID=你的文件夹ID
 
-# LA 节点配置
-DOWNLOAD_RATE_LIMIT=5M
-FETCH_LIMIT=20
-
-# HK 节点配置
+# 节点特定配置
+FETCH_LIMIT=10
 WHISPER_MODEL_SIZE=medium
-TRANSCRIPTION_LIMIT=10
 ```
 
 ## 🚀 节点部署指南
 
-### LA 抓取节点 (搬运工)
-负责监控表格状态，下载音频并存入 Rclone 挂载点。
+### 1. 基础启动
+在对应节点的 VPS 上进入项目目录：
 ```bash
+# LA 抓取节点
 python3 fetch_and_upload.py
-```
 
-### HK 转录节点 (翻译官)
-负责从 Rclone 读取音频，完成语音识别并回填字幕至 Google Sheets。
-```bash
+# HK 转录节点
 python3 transcribe_and_fill.py
 ```
 
-## 📂 文件说明
+### 2. 后台守护 (防止断开 SSH 后中断)
+在服务器上，当你关闭终端窗口时，普通运行的程序会随之停止。为了让脚本 24/7 运行，推荐以下两种方案：
 
-- `fetch_and_upload.py`: **LA 节点程序**。限速抓取音频，状态标记为 `音频已就绪`。
-- `transcribe_and_fill.py`: **HK 节点程序**。扫描就绪视频，完成 AI 转录，状态标记为 `等待处理`。
-- `drive_pipeline.py`: **单机全能版**。适合在单一 VPS 上完成全部流程的小型任务。
-- `gsheet_sync.py`: 简易 API 同步脚本。
-- `PRD.md`: 项目详细架构需求说明书。
+#### 方案 A：使用 `screen` (强烈推荐，方便随时查看日志)
+`screen` 就像给服务器开了一个“虚拟桌面”，你退出了 SSH，桌面还在。
 
-## ⚠️ 注意事项
+1. **安装** (若没有)：`sudo apt install screen`
+2. **创建一个新窗口**：
+   ```bash
+   screen -S youtube_task
+   ```
+3. **在窗口中启动脚本**：
+   ```bash
+   python3 fetch_and_upload.py
+   ```
+4. **退出窗口（保持运行）**：按下键盘 `Ctrl + A`，然后按 `D` (Detach)。现在你可以放心关闭终端了。
+5. **下次回来查看进度**：
+   ```bash
+   screen -r youtube_task
+   ```
 
-- **风控规避**：LA 节点的 `fetch_and_upload.py` 内置了 30-120 秒的随机休眠。
-- **资源占用**：HK 节点运行 `medium` 模型时建议至少 2GB RAM；运行 `large-v3` 建议 4GB+ RAM。
-- **静默后台运行**：
-  ```bash
-  nohup python3 fetch_and_upload.py &
-  ```
+#### 方案 B：使用 `nohup` (简单、无需安装)
+如果你不需要频繁交互，只想让它死跑。
+
+1. **启动并忽略挂断信号**：
+   ```bash
+   nohup python3 fetch_and_upload.py > task.log 2>&1 &
+   ```
+   - `> task.log`: 将所有输出记录到这个文件。
+   - `2>&1`: 把错误信息也合并到日志。
+   - `&`: 让程序直接进入后台。
+2. **如何停止它**：
+   ```bash
+   # 找到进程 ID
+   ps -ef | grep fetch_and_upload.py
+   # 杀掉它 (PID 是输出中的数字)
+   kill PID
+   ```
+
+### 3. 部署工作流建议
+1. **测试**：先 `python3 diagnostic.py` 检查权限。
+2. **试运行**：直接 `python3 fetch_and_upload.py` 跑 1-2 条，看表格是否更新。
+3. **长期运行**：使用 `screen` 挂载后台，定期检查 `task.log` 或 `screen -r`。
 
 ## 📜 开源协议
 MIT
