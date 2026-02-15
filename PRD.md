@@ -1,77 +1,62 @@
-**项目需求规格书（Requirement Specification）**。
+# PRD：YouTube 历史存量全自动 Blogger 转化工厂
+
+## 1. 项目目标
+
+实现对特定 YouTube 频道（如“Stone 记”）8000 条存量视频的自动化处理：提取音频 -> AI 转录文字 -> Gemini 双风格改写 -> 自动发布至两个独立运营的 Blogger 博客。
 
 ---
 
-## 项目：多频道 YouTube-to-Blogger AI 内容自动化工厂
+## 2. 核心业务流程
 
-### 1. 架构逻辑：分布式生产线
+### 阶段一：数据采集与任务排队（已在 Sheets 运行）
 
-* **节点 A (LA VPS - 采集与搬运)**：
-* **核心功能**：监控频道、采集链接、调用 `yt-dlp` 提取音频、上传至 Google Drive。
-* **流量控制**：限制下载速率，模拟人类访问，规避 YouTube IP 风控。
+* **功能**：通过 `nextPageToken` 机制分批抓取 8000 条视频的 URL 和 Video ID。
+* **逻辑**：每 15-30 分钟运行一次，直到 `log` 表显示 `COMPLETED`。
+* **输出**：在 `Production` 表中生成待处理清单，初始状态为“等待处理”。
 
-* **节点 B (HK VPS - 核心工坊)**：
-* **核心功能**：从 Google Drive 下载音频、运行 **Faster-Whisper** 生成字幕、回填 Google Sheets。
+### 阶段二：分布式 ASR 字幕工厂（VPS 核心任务）
 
-* **节点 C (Google Workspace - 调度中心)**：
-* **Sheets**：作为全局任务队列（Task Queue）。
-* **Drive**：作为音视频文件的中转仓库与持久化存储。
-* **Apps Script**：负责最后的 Gemini 生成与多博客分发。
+* **任务 A (LA 节点)**：
+    * 监控 `Production` 表，提取状态为“等待处理”且 E 列为空的行。
+    * 调用 `yt-dlp` 限速下载音频（避免 IP 风控）并同步至 Google Drive。
+    * 更新状态为“音频已就绪”。
 
----
+* **任务 B (HK 节点)**：
+    * 扫描状态为“音频已就绪”的任务，下载音频到本地。
+    * 使用 `Faster-Whisper` (Large-v3/Medium) 生成高精度字幕。
+    * **回填数据**：将完整字幕填入表格 **E 列**，并将状态更新为 **“等待处理”**（标记 ASR 已完成）。
 
-### 2. 详细功能模块需求
+### 阶段三：AI 改写与 Blogger 同步（Apps Script 自动化）
 
-#### **模块一：LA 节点 - “隐匿搬运工”**
-
-1. **限速下载**：配置 `yt-dlp` 参数 `--limit-rate 5M`（根据带宽调整），确保流量平稳。
-2. **多格式备份**：
-* 视频：最高分辨率 MP4 存入 Google Drive 的 `Video_Backup` 文件夹。
-* 音频：提取 128kbps M4A 存入 `Audio_Queue` 文件夹。
-
-
-3. **多频道兼容**：读取 `Config` 表中的频道列表，自动在 Drive 创建对应的子文件夹。
-
-#### **模块二：HK 节点 - “语言翻译官”**
-
-1. **断点扫描**：每 5 分钟扫描 Google Sheets，寻找“待转录”状态的行。
-2. **本地推理**：加载 `large-v3` 或 `medium` 模型。中文视频强制使用 `initial_prompt` 以减少繁简错误。
-3. **负载管理**：HK VPS 仅在检测到新音频时启动推理，避免 CPU 长期空转。
-
-#### **模块三：多频道扩展引擎 (Multi-Channel Engine)**
-
-1. **统一数据库**：在 `Production` 表增加 `Channel_Key` 列。
-2. **动态分发**：Gemini 生成时，根据 `Channel_Key` 自动匹配对应的 **Blogger ID** 和 **Prompt Style**。
+* **功能**：扫描表格中状态为“等待处理”且 **E 列已有内容** 的行。
+* **AI 创作**：调用 Gemini 1.5 Flash API，根据 E 列字幕生成两篇文章：
+    * **Blog A (深度版)**：执行 PROMPT_A，定位资深分析师风格。
+    * **Blog B (复刻版)**：执行 PROMPT_B，保留博主原始口吻。
+* **自动分发**：调用 Blogger API 将文章推送至指定的两个 Blog ID。
+* **结果闭环**：在表格 **D 列** 填入已生成的博客链接，状态设为 **“发布成功 ✅”**。
 
 ---
 
-### 3. Antigravity 部署指令清单
+## 3. 关键功能点 (Feature List)
 
-请将以下逻辑输入到你的管理工具中执行：
-
-#### **Step 1: 环境初始化 (双机同步)**
-
-* **LA & HK**：安装 `Python 3.10+`, `ffmpeg`, `rclone`。
-* **配置 rclone**：在两台 VPS 上配置相同的 Google Drive 挂载点，确保文件同步无缝。
-
-#### **Step 2: 核心代码部署**
-
-* **LA 运行 `fetch_and_upload.py**`：
-* 逻辑：监控 Sheets -> `yt-dlp` 限速下载音频 -> 上传 Drive -> 更新 Sheets 状态为“音频已就绪”。
-
-
-* **HK 运行 `transcribe_and_fill.py**`：
-* 逻辑：监控 Sheets (状态=音频已就绪) -> 从 Drive 读取音频 -> Faster-Whisper 转录 -> 回填 E 列 -> 更新状态为“等待处理”。
-
-#### **Step 3: Apps Script 触发器**
-
-* 设置每小时运行一次 `batchProcessVideos`，完成最后的 AI 撰写与发布。
+| 模块 | 关键需求 | 备注 |
+| --- | --- | --- |
+| **风控管理** | LA 下载限速、随机休眠、多 VPS 分工。 | 保护 YouTube 访问不被拉黑。 |
+| **存储中转** | 支持 Google Drive API 或 Rclone 同步 | 解决 8000 条音频的存储空间问题。 |
+| **容错机制** | 排除“会员专享”、“已删除”、“私有”视频。 | 防止脚本因权限问题卡死。 |
+| **批量发布** | 支持 `batchProcessVideos` 批量写作。 | 确保发布频率可控。 |
 
 ---
 
-### 4. 关键风险规避设置
+## 4. 交付物清单
 
-* **YouTube 风控**：在 LA VPS 脚本中引入随机等待时间 `random.uniform(30, 120)`，且每次采集不超过 50 条。
-* **硬盘保护**：文件上传至 Google Drive 成功后，必须执行 `os.remove()` 物理删除 VPS 本地缓存。
+1. **Google Sheets 模版**：含 `Production`、`Config`、`log` 表及触发器。
+2. **LA 采集脚本**：Python 版，负责下载与 Drive 同步。
+3. **HK 转录脚本**：Python 版，负责 Faster-Whisper 推理与回填。
+4. **Apps Script 核心**：含 Gemini 调用与 Blogger 自动发布逻辑。
 
 ---
+
+### 💡 需求执行状态说明：
+
+目前项目已完成 ASR 字幕工厂（阶段二）的核心脚本开发与仓库构建。通过分阶段执行，我们将确保 8000 条存量数据在不触碰 YouTube 阈值的情况下平稳完成内容化资产转换。
