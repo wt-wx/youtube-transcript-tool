@@ -130,10 +130,33 @@ python3 transcribe_and_fill.py
    kill PID
    ```
 
-### 3. 部署工作流建议
-1. **测试**：先 `python3 diagnostic.py` 检查权限。
-2. **试运行**：直接 `python3 fetch_and_upload.py` 跑 1-2 条，看表格是否更新。
-3. **长期运行**：使用 `screen` 挂载后台，定期检查 `task.log` 或 `screen -r`。
+## 📂 项目结构
 
-## 📜 开源协议
-MIT
+```text
+/
+├── fetch_and_upload.py    # LA 节点启动入口
+├── transcribe_and_fill.py # HK 节点启动入口
+├── diagnostic.py          # 环境诊断工具
+├── src/                   # 核心源代码
+│   └── core/              # 配置与 API 客户端封装
+├── legacy/                # 历史/备选管线脚本 (归档)
+├── .env.example           # 环境变量配置模版
+└── requirements.txt       # Python 依赖清单
+```
+
+## 📜 常用命令
+
+### 1. 环境诊断
+在部署前，运行此脚本检查 Google API 权限：
+```bash
+python3 diagnostic.py
+```
+
+### 2. 启动生产线
+```bash
+# LA 节点
+python3 fetch_and_upload.py
+
+# HK 节点
+python3 transcribe_and_fill.py
+```
