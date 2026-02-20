@@ -103,6 +103,16 @@ def deploy(c, group, role):
 
                 # 3. 配置分发
                 print(f"📁 Uploading configurations for {role}...")
+                
+                # 优先分发个人 OAuth Token
+                if os.path.exists(f"{LOCAL_CONF_DIR}/token.json"):
+                    conn.put(f"{LOCAL_CONF_DIR}/token.json", remote=f"{REMOTE_ROOT}/token.json")
+                    print("✅ Uploaded User OAuth token.json")
+                elif os.path.exists(f"{os.path.dirname(LOCAL_CONF_DIR)}/token.json"): # 兼容如果直接放在根目录的话
+                     conn.put(f"{os.path.dirname(LOCAL_CONF_DIR)}/token.json", remote=f"{REMOTE_ROOT}/token.json")
+                     print("✅ Uploaded User OAuth token.json")
+                
+                # 保留 Service Account 凭据作为后备
                 conn.put(f"{LOCAL_CONF_DIR}/credentials.json", remote=f"{REMOTE_ROOT}/credentials.json")
                 
                 env_file = f".env.{role}"

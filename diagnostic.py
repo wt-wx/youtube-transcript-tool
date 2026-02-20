@@ -14,8 +14,11 @@ def diagnostic():
     # 2. 检查 Google 客户端
     try:
         google = GoogleClient()
-        print("✅ 服务账号凭据解析成功")
-        print(f"📧 服务账号 Email: {google._creds.service_account_email}")
+        if google._user_creds:
+            print("✅ 个人号 OAuth 授权 (token.json) 解析成功")
+        else:
+            print("✅ 服务账号凭据解析成功")
+            print(f"📧 服务账号 Email: {google._creds.service_account_email}")
     except Exception as e:
         print(f"❌ 凭据解析失败: {e}")
         return

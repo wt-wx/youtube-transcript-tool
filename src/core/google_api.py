@@ -1,4 +1,6 @@
+import os
 import gspread
+from google.oauth2.credentials import Credentials
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -7,6 +9,7 @@ from src.core.config import Config
 class GoogleClient:
     _instance = None
     _creds = None
+    _user_creds = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -21,14 +24,26 @@ class GoogleClient:
             "https://www.googleapis.com/auth/drive",
             "https://www.googleapis.com/auth/spreadsheets"
         ]
-        cls._creds = ServiceAccountCredentials.from_json_keyfile_name(
-            Config.CREDENTIALS_FILE, scope
-        )
+        
+        # 1. 优先使用个人用户 OAuth 授权的 token.json
+        if os.path.exists('token.json'):
+            cls._user_creds = Credentials.from_authorized_user_file('token.json', scope)
+        # 2. 回退使用 Service Account 凭据保护兼容性
+        elif os.path.exists(Config.CREDENTIALS_FILE):
+            cls._creds = ServiceAccountCredentials.from_json_keyfile_name(
+                Config.CREDENTIALS_FILE, scope
+            )
+        else:
+            raise FileNotFoundError(f"未找到 token.json 或 {Config.CREDENTIALS_FILE} 进行 API 授权。")
 
     def get_sheets_client(self):
+        if self._user_creds:
+            return gspread.authorize(self._user_creds)
         return gspread.authorize(self._creds)
 
     def get_drive_service(self):
+        if self._user_creds:
+            return build('drive', 'v3', credentials=self._user_creds)
         return build('drive', 'v3', credentials=self._creds)
 
     def get_production_sheet(self):
@@ -48,6 +63,7 @@ class GoogleClient:
         file = drive_service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id'
+            fields='id',
+            supportsAllDrives=True
         ).execute()
         return file.get('id')
