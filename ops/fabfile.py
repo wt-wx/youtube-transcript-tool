@@ -142,7 +142,9 @@ def restart_service(conn, role):
     conn.run(f"pkill -f {script}", warn=True)
     
     with conn.cd(REMOTE_ROOT):
-        cmd = f"nohup {python_bin} {script} > task.log 2>&1 &"
-        conn.run(cmd, pty=False)
+        # 彻底切断标准输入/输出/错误流与 SSH TTY 的关联，防止 Fabric 部署卡死
+        cmd = f"nohup {python_bin} {script} > task.log 2>&1 </dev/null & disown"
+        # asynchronous=True 让 invoke 不等待进程返回即认为命令完成
+        conn.run(cmd, hide=True, asynchronous=True)
         
     print(f"✅ Service {script} restarted")
