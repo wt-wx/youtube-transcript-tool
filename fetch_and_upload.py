@@ -24,8 +24,8 @@ def fetch_and_upload():
         video_id = row[1]
         status = row[2] if len(row) > 2 else ""
         
-        # 仅处理需要抓取的行
-        if video_id and (status == "等待下载" or status == "" or status == "等待处理"):
+        # 仅处理被人工打上"等待处理"标签的行 (防盲目抓取代价)
+        if video_id and status == "等待处理":
             if "音频已就绪" in status:
                 continue
 
