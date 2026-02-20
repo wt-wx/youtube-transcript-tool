@@ -19,41 +19,34 @@
 
 ## 🛠️ 环境要求与安装
 
-### 1. 系统依赖 (LA/HK 两个节点均需安装)
-- **Python 3.10+**
-- **FFmpeg**: 核心组件。LA 节点用于提取音轨，HK 节点用于语音解码。
-- **Python Pip & Venv**: 用于管理依赖和虚拟环境。
+本项目分为 **控制端 (Ops Hub)** 和 **被控端 (LA/HK 目标节点)**，两者的环境准备工作完全不同。
+
+### 1. 目标节点基础环境 (LA/HK VPS)
+目标节点只需要最基础的系统环境。**不要**手动去安装 Python 库，代码同步、Venv 创建和 `pip install` 都将由 Ops Hub 在部署时**全自动完成**。
+
+你只需要在全新的目标服务器上执行以下命令安装系统底层的 FFmpeg 和 Python 基础包：
 
 ```bash
-# Ubuntu/Debian 环境初始化
+# LA / HK 节点环境初始化
 sudo apt update
 sudo apt install ffmpeg python3-pip python3-venv -y
 ```
 
-### 2. 创建并激活虚拟环境 (推荐)
-为了保持服务器全局环境纯净，建议在项目根目录下使用虚拟环境：
+### 2. Ops Hub 控制端配置 (如 HP-G3 堡垒机)
+Ops Hub 负责纵览全局并向目标节点发号施令。你需要在这里克隆项目，并安装 `fabric` 自动化控制模块。
 
 ```bash
-# 1. 创建虚拟环境 (名为 venv)
-python3 -m venv venv
+# 1. 拉取项目代码到 Ops Hub
+git clone https://github.com/wt-wx/youtube-transcript-tool.git /opt/antigravity/youtube-factory
+cd /opt/antigravity/youtube-factory
 
-# 2. 激活虚拟环境
+# 2. 创建并激活虚拟环境
+python3 -m venv venv
 source venv/bin/activate
 
-# 激活后，你的命令行提示符前会出现 (venv) 字样
+# 3. 安装部署基建工具
+pip install fabric pyyaml
 ```
-
-### 3. 安装项目依赖
-激活虚拟环境后，根据节点角色安装所需组件：
-
-- **LA 节点 (抓取)**:
-  ```bash
-  pip install yt-dlp gspread oauth2client google-api-python-client python-dotenv
-  ```
-- **HK 节点 (转录)**:
-  ```bash
-  pip install faster-whisper gspread oauth2client python-dotenv
-  ```
 
 ## 📦 快速开始
 
@@ -87,12 +80,8 @@ WHISPER_MODEL_SIZE=medium
 
 在环境配置中心（如 HP-G3 Bastion Host）执行一键分发与进程拉起：
 
-1. **环境准备 (HP-G3 上仅需执行一次)**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install fabric pyyaml
-   ```
+1. **前提确认**
+   确保你已经在 Ops Hub 上的对应目录中 (`/opt/antigravity/youtube-factory`) 拉取了代码，并且正处于包含 Fabric 的虚拟环境中 (`source venv/bin/activate`)。
 
 2. **配置 Inventory 与私钥**
    确保 HP-G3 项目根目录下的 `inventory.yaml` 配置了目标节点组（如 `external_nodes`），以及正确的 `key_filename` 私钥路径映射。私钥由 Ops Hub 集中保管，不在目标机保存密码。
