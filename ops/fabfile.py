@@ -3,7 +3,8 @@ import yaml
 import os
 
 # --- 全局配置 ---
-REMOTE_ROOT = "/opt/youtube-factory"
+# 远程部署目录 (改写到用户主目录下以避开 sudo 依赖)
+REMOTE_ROOT = "~/youtube-factory"
 # 这个是指向你在 HP-G3 的本地目录，确保 conf 文件夹在这里
 LOCAL_CONF_DIR = "/opt/antigravity/youtube-factory/conf"
 REPO_URL = "https://github.com/wt-wx/youtube-transcript-tool.git"
@@ -89,9 +90,7 @@ def deploy(c, group, role):
             with conn:
                 # 1. 基础环境
                 print("🛠️  Checking remote environment...")
-                # 使用 sudo 创建目录，并更改所有权为当前部署用户
-                conn.sudo(f"mkdir -p {REMOTE_ROOT}")
-                conn.sudo(f"chown -R {conn.user}:{conn.user} {REMOTE_ROOT}")
+                conn.run(f"mkdir -p {REMOTE_ROOT}")
                 
                 # 2. 代码同步 (Git)
                 print("📦 Syncing code from GitHub...")
