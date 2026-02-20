@@ -13,9 +13,10 @@ REPO_URL = "https://github.com/wt-wx/youtube-transcript-tool.git"
 def deploy(c, role):
     """
     全量部署任务：代码同步 -> 配置分发 -> 依赖更新 -> 服务重启
-    Usage: fab -H <ip> deploy --role=la (or hk)
+    Usage: fab -H user@ip:port deploy --role=la (or hk)
+    Example: fab -H root@1.2.3.4:2222 deploy --role=la
     """
-    print(f"🚀 Starting deployment for role: {role} on {c.host}...")
+    print(f"🚀 Starting deployment for role: {role} on {c.host}:{c.port or 22}...")
 
     # 1. 基础环境检查
     print("🛠️  Checking remote environment...")
