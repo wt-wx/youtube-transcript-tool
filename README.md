@@ -1,6 +1,6 @@
 # YouTube Content Automation Factory 🚀
 
-这是一个工业级的 YouTube 内容自动化生产线。它采用分布式架构，能够高效地处理大规模频道存量视频的字幕抓取、语音识别（ASR）以及多平台内容转化。
+一个工业级的 YouTube 内容自动化生产线。它采用分布式架构，能够高效地处理大规模频道存量视频的字幕抓取、语音识别（ASR）以及多平台内容转化。
 
 ## 🏗️ 分布式架构设计
 
@@ -160,3 +160,6 @@ python3 fetch_and_upload.py
 # HK 节点
 python3 transcribe_and_fill.py
 ```
+MIT License
+
+https://geniux.net
