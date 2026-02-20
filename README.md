@@ -17,7 +17,19 @@
 - **高精度 AI 转录**：基于 `Faster-Whisper` 的 `large-v3` 或 `medium` 模型，针对中文优化了 `initial_prompt`。
 - **云端持久化**：支持通过 Google Drive 或 Rclone 挂载点进行音频中转，无需 VPS 长期占用硬盘。
 
-## 🛠️ 环境要求与安装
+## � 投产前最后一步 (TODO)
+
+在整个自动化流水线正式开始无人值守运转之前，**必须在 HK 节点（转录/AI 节点）上手动完成以下 Rclone 数据桥配置**，否则模型将无法读取 LA 节点下载的音频：
+
+1. **安装 Rclone**：登入 HK 机执行 `sudo -v ; curl https://rclone.org/install.sh | sudo bash`
+2. **绑定 Drive**：运行 `rclone config`，新增一个 drive 类型的 remote，并进行网页授权。
+3. **挂载目录**：将含有音频的 Google Drive 文件夹持久化挂载到 HK 的本地路径（注意该路径必须与配置中的 `RCLONE_MOUNT_PATH` 完全一致）。
+
+> 💡 **投产验收**：完成上述挂载后，在 Google Sheets 面板中手动将某一感兴趣视频的 C 列状态设为 `等待处理`，观察 LA 下载并接力给 HK 节点的闭环是否顺畅。成功后，即可正式宣告工业化投产！
+
+---
+
+## �🛠️ 环境要求与安装
 
 本项目分为 **控制端 (Ops Hub)** 和 **被控端 (LA/HK 目标节点)**，两者的环境准备工作完全不同。
 
