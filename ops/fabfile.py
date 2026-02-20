@@ -76,55 +76,55 @@ def deploy(c, group, role):
         print("❌ No targets found. Aborting.")
         return
 
-        for host_def in targets:
-            if role == 'la' and 'bwg.la' not in host_def.get('host', ''):
-                continue
-            if role == 'hk' and 'kty.hk' not in host_def.get('host', ''):
-                continue
+    for host_def in targets:
+        if role == 'la' and 'bwg.la' not in host_def.get('host', ''):
+            continue
+        if role == 'hk' and 'kty.hk' not in host_def.get('host', ''):
+            continue
 
-            conn = get_connection(host_def)
-            print(f"\n🚀 Starting deployment for role: {role} on {conn.host}:{conn.port} as {conn.user}...")
-            
-            try:
-                with conn:
-                    # 1. 基础环境
-                    print("🛠️  Checking remote environment...")
-                    conn.run(f"mkdir -p {REMOTE_ROOT}")
-                    
-                    # 2. 代码同步 (Git)
-                    print("📦 Syncing code from GitHub...")
-                    with conn.cd(REMOTE_ROOT):
-                        if conn.run("test -d .git", warn=True).failed:
-                            conn.run(f"git clone {REPO_URL} .")
-                        else:
-                            conn.run("git fetch origin main")
-                            conn.run("git reset --hard origin/main")
-
-                    # 3. 配置分发
-                    print(f"📁 Uploading configurations for {role}...")
-                    conn.put(f"{LOCAL_CONF_DIR}/credentials.json", remote=f"{REMOTE_ROOT}/credentials.json")
-                    
-                    env_file = f".env.{role}"
-                    if os.path.exists(f"{LOCAL_CONF_DIR}/{env_file}"):
-                        conn.put(f"{LOCAL_CONF_DIR}/{env_file}", remote=f"{REMOTE_ROOT}/.env")
-                        print(f"✅ Uploaded {env_file} as .env")
+        conn = get_connection(host_def)
+        print(f"\n🚀 Starting deployment for role: {role} on {conn.host}:{conn.port} as {conn.user}...")
+        
+        try:
+            with conn:
+                # 1. 基础环境
+                print("🛠️  Checking remote environment...")
+                conn.run(f"mkdir -p {REMOTE_ROOT}")
+                
+                # 2. 代码同步 (Git)
+                print("📦 Syncing code from GitHub...")
+                with conn.cd(REMOTE_ROOT):
+                    if conn.run("test -d .git", warn=True).failed:
+                        conn.run(f"git clone {REPO_URL} .")
                     else:
-                        print(f"⚠️  Warning: Local config {LOCAL_CONF_DIR}/{env_file} not found!")
+                        conn.run("git fetch origin main")
+                        conn.run("git reset --hard origin/main")
 
-                    # 4. 依赖更新 (Venv)
-                    print("🐍 Updating Python dependencies...")
-                    venv_dir = f"{REMOTE_ROOT}/venv"
-                    if conn.run(f"test -d {venv_dir}", warn=True).failed:
-                        conn.run(f"python3 -m venv {venv_dir}")
-                        conn.run(f"{venv_dir}/bin/pip install --upgrade pip")
-                    conn.run(f"{venv_dir}/bin/pip install -r {REMOTE_ROOT}/requirements.txt")
+                # 3. 配置分发
+                print(f"📁 Uploading configurations for {role}...")
+                conn.put(f"{LOCAL_CONF_DIR}/credentials.json", remote=f"{REMOTE_ROOT}/credentials.json")
+                
+                env_file = f".env.{role}"
+                if os.path.exists(f"{LOCAL_CONF_DIR}/{env_file}"):
+                    conn.put(f"{LOCAL_CONF_DIR}/{env_file}", remote=f"{REMOTE_ROOT}/.env")
+                    print(f"✅ Uploaded {env_file} as .env")
+                else:
+                    print(f"⚠️  Warning: Local config {LOCAL_CONF_DIR}/{env_file} not found!")
 
-                    # 5. 服务重启
-                    restart_service(conn, role)
-                    print(f"✨ Deployment COMPLETED for {conn.host}!")
-                    
-            except Exception as e:
-                print(f"❌ Deployment Failed on {conn.host}: {str(e)}")
+                # 4. 依赖更新 (Venv)
+                print("🐍 Updating Python dependencies...")
+                venv_dir = f"{REMOTE_ROOT}/venv"
+                if conn.run(f"test -d {venv_dir}", warn=True).failed:
+                    conn.run(f"python3 -m venv {venv_dir}")
+                    conn.run(f"{venv_dir}/bin/pip install --upgrade pip")
+                conn.run(f"{venv_dir}/bin/pip install -r {REMOTE_ROOT}/requirements.txt")
+
+                # 5. 服务重启
+                restart_service(conn, role)
+                print(f"✨ Deployment COMPLETED for {conn.host}!")
+                
+        except Exception as e:
+            print(f"❌ Deployment Failed on {conn.host}: {str(e)}")
 
 def restart_service(conn, role):
     print("🔄 Restarting service...")
