@@ -5,7 +5,7 @@ import os
 # 远程部署目录
 REMOTE_ROOT = "/opt/youtube-factory"
 # 本地配置源 (HP-G3 上的路径)
-LOCAL_CONF_DIR = "/opt/antigravity/ops/projects/youtube-factory/conf"
+LOCAL_CONF_DIR = "/opt/antigravity/youtube-factory/conf"
 # Git 仓库
 REPO_URL = "https://github.com/wt-wx/youtube-transcript-tool.git"
 
