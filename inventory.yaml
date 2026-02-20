@@ -1,0 +1,21 @@
+groups:
+  internal_hub:
+    desc: "XXXX Primary Hub (Bastion Host)"
+    user: root
+    port: 22
+    hosts:
+      - localhost
+
+  external_nodes:
+    desc: "Geniux External Nodes"
+    key_filename: /root/.ssh/xxxxxx
+    hosts:
+      # Node 1: xxx Node
+      - host: xxxx.net
+        user: xxxx
+        port: 22
+
+      # Node 2:XXX Node
+      - host: XXXXX.net
+        user: XXX
+        port: 22
