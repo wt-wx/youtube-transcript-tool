@@ -89,7 +89,9 @@ def deploy(c, group, role):
             with conn:
                 # 1. 基础环境
                 print("🛠️  Checking remote environment...")
-                conn.run(f"mkdir -p {REMOTE_ROOT}")
+                # 使用 sudo 创建目录，并更改所有权为当前部署用户
+                conn.sudo(f"mkdir -p {REMOTE_ROOT}")
+                conn.sudo(f"chown -R {conn.user}:{conn.user} {REMOTE_ROOT}")
                 
                 # 2. 代码同步 (Git)
                 print("📦 Syncing code from GitHub...")
