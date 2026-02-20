@@ -3,8 +3,8 @@ import yaml
 import os
 
 # --- 全局配置 ---
-# 远程部署目录 (改写到用户主目录下以避开 sudo 依赖)
-REMOTE_ROOT = "~/youtube-factory"
+# 远程部署目录 (遵循用户习惯，使用 /opt，并配合 root 操作)
+REMOTE_ROOT = "/opt/youtube-factory"
 # 这个是指向你在 HP-G3 的本地目录，确保 conf 文件夹在这里
 LOCAL_CONF_DIR = "/opt/antigravity/youtube-factory/conf"
 REPO_URL = "https://github.com/wt-wx/youtube-transcript-tool.git"
@@ -70,7 +70,7 @@ def resolve_targets(group_name):
 def deploy(c, group, role):
     """
     全量部署任务，遵循 Ops Hub 规范。
-    Usage: fab -f ops/fabfile_yt.py deploy --group=bwg_workers --role=la
+    Usage: fab -f ops/fabfile.py deploy --group=bwg_workers --role=la
     """
     targets = resolve_targets(group)
     if not targets:
