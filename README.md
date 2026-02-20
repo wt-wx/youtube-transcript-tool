@@ -27,9 +27,12 @@
 你只需要在全新的目标服务器上执行以下命令安装系统底层的 FFmpeg 和 Python 基础包：
 
 ```bash
-# LA / HK 节点环境初始化
+# LA / HK 节点基础所需：
 sudo apt update
 sudo apt install ffmpeg python3-pip python3-venv -y
+
+# 注意：HK 转录节点需要额外安装 Rclone 以便挂载 Google Drive
+# sudo -v ; curl https://rclone.org/install.sh | sudo bash
 ```
 
 ### 2. Ops Hub 控制端配置 (如 HP-G3 堡垒机)
