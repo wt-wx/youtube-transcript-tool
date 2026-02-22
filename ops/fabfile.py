@@ -10,7 +10,8 @@ LOCAL_CONF_DIR = "/opt/antigravity/youtube-factory/conf"
 REPO_URL = "https://github.com/wt-wx/youtube-transcript-tool.git"
 
 # --- Inventory 运维逻辑，遵循 server-ops-hub 规范 ---
-INVENTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'inventory.yaml')
+_cur_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.path.join(os.getcwd(), 'ops')
+INVENTORY_FILE = os.path.join(_cur_dir, '..', 'inventory.yaml')
 
 def load_inventory():
     if not os.path.exists(INVENTORY_FILE):
@@ -158,3 +159,38 @@ def restart_service(conn, role):
         conn.run(cmd, hide=True, asynchronous=True)
         
     print(f"✅ Service {script} restarted")
+
+@task
+def mount_drive(c):
+    """
+    HK 节点专用：自动化挂载 Google Drive 音频目录。
+    遵循 README 中的投产规范。
+    """
+    MOUNT_PATH = "/opt/google_drive"
+    REMOTE_NAME = "gdrive" # 请确保 rclone config 中命名的也是这个
+    REMOTE_FOLDER = "youtube_factory" # Drive 上的文件夹名
+    
+    print(f"📁 Preparing mount point: {MOUNT_PATH}...")
+    c.sudo(f"mkdir -p {MOUNT_PATH}")
+    c.sudo(f"chown {c.user}:{c.user} {MOUNT_PATH}")
+
+    # 检查是否已挂载
+    check = c.run(f"mount | grep {MOUNT_PATH}", warn=True, hide=True)
+    if check.ok:
+        print(f"✅ {MOUNT_PATH} is already mounted.")
+        return
+
+    print("🚀 Mounting Google Drive via Rclone...")
+    # 使用 --daemon 模式运行，并优化读写性能
+    # --vfs-cache-mode writes 对转录读取非常重要
+    mount_cmd = (
+        f"rclone mount {REMOTE_NAME}:{REMOTE_FOLDER} {MOUNT_PATH} "
+        f"--daemon --vfs-cache-mode writes --allow-other "
+        f"--buffer-size 32M --dir-cache-time 12h"
+    )
+    
+    result = c.run(mount_cmd, warn=True)
+    if result.ok:
+        print(f"✨ Success! Google Drive mounted at {MOUNT_PATH}")
+    else:
+        print(f"❌ Mount failed. Please check 'rclone config' and remote name.")
