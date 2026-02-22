@@ -17,103 +17,47 @@
 - **高精度 AI 转录**：基于 `Faster-Whisper` 的 `large-v3` 或 `medium` 模型，针对中文优化了 `initial_prompt`。
 - **云端持久化**：支持通过 Google Drive 或 Rclone 挂载点进行音频中转，无需 VPS 长期占用硬盘。
 
-## � 投产前最后一步 (TODO)
+## 🏗️ 工业化部署与运维 (Ops Hub)
 
-在整个自动化流水线正式开始无人值守运转之前，**必须在 HK 节点（转录/AI 节点）上手动完成以下 Rclone 数据桥配置**，否则模型将无法读取 LA 节点下载的音频：
+本项目已实现高度自动化。建议在 **HP-G3 堡垒机** 上统一管理所有节点的部署与数据桥挂载。
 
-1. **安装 Rclone**：登入 HK 机执行 `sudo -v ; curl https://rclone.org/install.sh | sudo bash`
-2. **绑定 Drive**：运行 `rclone config`，新增一个 drive 类型的 remote，并进行网页授权。
-3. **挂载目录**：将含有音频的 Google Drive 文件夹持久化挂载到 HK 的本地路径（注意该路径必须与配置中的 `RCLONE_MOUNT_PATH` 完全一致）。
+### 1. 自动化运维任务清单
 
-> 💡 **投产验收**：完成上述挂载后，在 Google Sheets 面板中手动将某一感兴趣视频的 C 列状态设为 `等待处理`，观察 LA 下载并接力给 HK 节点的闭环是否顺畅。成功后，即可正式宣告工业化投产！
+在 Ops Hub 的 `ops/` 目录下（或根目录），使用 `fab` 命令：
+
+| 任务 | 命令 | 说明 |
+| :--- | :--- | :--- |
+| **安装 Rclone** | `fab install-rclone` | 在 HK 节点全自动下载并安装指定版本的 Rclone |
+| **挂载云盘** | `fab mount-drive` | 一键建立从 Google Drive 到 `/opt/google_drive` 的 FUSE 通道 |
+| **全量部署** | `fab deploy` | 同步最新代码、分发配置、安装 Venv、重启服务进程 |
+
+### 2. 核心部署流程 (一键投产)
+
+1. **配置鉴权**：在本地运行 `python auth_setup.py` 获取 `token.json`（**务必勾选 Drive 和 Sheets 两个权限**）。
+2. **环境对齐**：在 HK 节点运行 `sudo apt install fuse3 -y`（Debian 12/13 必备）。
+3. **一键挂载**：
+   ```bash
+   # 在 HP-G3 的 ops 目录下
+   fab mount-drive --group external_nodes --role hk
+   ```
+4. **全量启动**：
+   ```bash
+   fab deploy --group external_nodes --role hk
+   ```
 
 ---
 
-## �🛠️ 环境要求与安装
+### 3. 工业级运维排障矩阵 (Ops Hub Handbook)
 
-本项目分为 **控制端 (Ops Hub)** 和 **被控端 (LA/HK 目标节点)**，两者的环境准备工作完全不同。
+| 症状 | 根因 | 修复动作 |
+| :--- | :--- | :--- |
+| **Blogger 没出文章** | 阶段三 Apps Script 未触发 | 进入 Sheets -> 扩展程序 -> Apps Script 手动点运行 |
+| **"missing scopes" 报错** | `token.json` 权限不足 | **删掉本地 token.json**，重新运行 `auth_setup.py` 并勾选 Sheets 复选框 |
+| **"Daemon timed out"** | 缺少 FUSE3 环境 | 在 HK 节点执行 `sudo apt install fuse3 -y` |
+| **CPU 100% 且系统卡死** | 模型过重 & Swap 抖动 | 在 `.env.hk` 中将 `WHISPER_MODEL_SIZE` 降级为 `small` 且开启 `int8` |
+| **LA 节点不抓取** | C 列 (Status) 为空 | 在 Sheets 中手动或批量将 C 列改为 `等待处理` |
 
-### 1. 目标节点基础环境 (LA/HK VPS)
-目标节点只需要最基础的系统环境。**不要**手动去安装 Python 库，代码同步、Venv 创建和 `pip install` 都将由 Ops Hub 在部署时**全自动完成**。
-
-你只需要在全新的目标服务器上执行以下命令安装系统底层的 FFmpeg 和 Python 基础包：
-
-```bash
-# LA / HK 节点基础所需：
-sudo apt update
-sudo apt install ffmpeg python3-pip python3-venv -y
-
-# 注意：HK 转录节点需要额外安装 Rclone 以便挂载 Google Drive
-# sudo -v ; curl https://rclone.org/install.sh | sudo bash
-```
-
-### 2. Ops Hub 控制端配置 (如 HP-G3 堡垒机)
-Ops Hub 负责纵览全局并向目标节点发号施令。你需要在这里克隆项目，并安装 `fabric` 自动化控制模块。
-
-```bash
-# 1. 拉取项目代码到 Ops Hub
-git clone https://github.com/wt-wx/youtube-transcript-tool.git /opt/antigravity/youtube-factory
-cd /opt/antigravity/youtube-factory
-
-# 2. 创建并激活虚拟环境
-python3 -m venv venv
-source venv/bin/activate
-
-# 3. 安装部署基建工具
-pip install fabric pyyaml
-```
-
-## 📦 快速开始
-
-### 1. Google 项目与 Drive 配置
-1. **获取凭据**：在 Google Cloud 下载服务账号密钥，重命名为 `credentials.json` 放入项目根目录。
-2. **开启 API**：确保在 GCP Console 开启了 **Sheets API** 和 **Drive API**。
-3. **设置中转文件夹**：
-   - 在 Google Drive 创建文件夹（如 `youtube_factory`）。
-   - **共享**：将该文件夹共享给服务账号的 Email，权限设为 **“编辑者”**。
-   - **获取 ID**：复制文件夹 URL 中的最后一串字符。
-
-### 2. 环境配置 (.env)
-在根目录创建 `.env` 文件：
-```env
-CREDENTIALS_FILE=credentials.json
-SPREADSHEET_NAME=YouTube_Blogger_Automation
-
-# 填入你刚才准备的文件夹 ID
-DRIVE_FOLDER_ID=你的文件夹ID
-
-# 节点特定配置
-FETCH_LIMIT=10
-WHISPER_MODEL_SIZE=medium
-```
-
-## 🚀 节点部署指南
-
-本项目采用工业级集中化部署方案，通过 `fabric` 结合统一的 `inventory.yaml` 进行自动化运维部署。
-
-### 1. HP-G3 Ops Hub 集中化一键部署 (推荐)
-
-在环境配置中心（如 HP-G3 Bastion Host）执行一键分发与进程拉起：
-
-1. **前提确认**
-   确保你已经在 Ops Hub 上的对应目录中 (`/opt/antigravity/youtube-factory`) 拉取了代码，并且正处于包含 Fabric 的虚拟环境中 (`source venv/bin/activate`)。
-
-2. **配置 Inventory 与私钥**
-   确保 HP-G3 项目根目录下的 `inventory.yaml` 配置了目标节点组（如 `external_nodes`），以及正确的 `key_filename` 私钥路径映射。私钥由 Ops Hub 集中保管，不在目标机保存密码。
-
-3. **执行自动化部署**
-   一键完成：SSH 远控 -> 环境检查 -> Git 最新代码拉取 -> 本地配置 (`.env`, `credentials.json` 从 `conf/` 目录) 下发 -> Python venv 修复与依赖安装 -> Pkill 结束旧进程 -> Nohup 无痕后台拉起新进程。
-
-   ```bash
-   # 前提必须进入虚拟环境: source venv/bin/activate
-   cd ops/
-   
-   # 部署 LA (抓取/上传) 节点
-   fab deploy --group external_nodes --role la
-   
-   # 部署 HK (AI/转录) 节点
-   fab deploy --group external_nodes --role hk
-   ```
+---
 
 ### 2. 单机手动基础启动
 在对应节点的 VPS 上进入项目目录：
