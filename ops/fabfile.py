@@ -161,36 +161,51 @@ def restart_service(conn, role):
     print(f"✅ Service {script} restarted")
 
 @task
-def mount_drive(c):
+def mount_drive(c, group, role):
     """
     HK 节点专用：自动化挂载 Google Drive 音频目录。
-    遵循 README 中的投产规范。
+    Usage: fab mount-drive --group=external_nodes --role=hk
     """
-    MOUNT_PATH = "/opt/google_drive"
-    REMOTE_NAME = "gdrive" # 请确保 rclone config 中命名的也是这个
-    REMOTE_FOLDER = "youtube_factory" # Drive 上的文件夹名
-    
-    print(f"📁 Preparing mount point: {MOUNT_PATH}...")
-    c.sudo(f"mkdir -p {MOUNT_PATH}")
-    c.sudo(f"chown {c.user}:{c.user} {MOUNT_PATH}")
-
-    # 检查是否已挂载
-    check = c.run(f"mount | grep {MOUNT_PATH}", warn=True, hide=True)
-    if check.ok:
-        print(f"✅ {MOUNT_PATH} is already mounted.")
+    targets = resolve_targets(group)
+    if not targets:
+        print("❌ No targets found. Aborting.")
         return
 
-    print("🚀 Mounting Google Drive via Rclone...")
-    # 使用 --daemon 模式运行，并优化读写性能
-    # --vfs-cache-mode writes 对转录读取非常重要
-    mount_cmd = (
-        f"rclone mount {REMOTE_NAME}:{REMOTE_FOLDER} {MOUNT_PATH} "
-        f"--daemon --vfs-cache-mode writes --allow-other "
-        f"--buffer-size 32M --dir-cache-time 12h"
-    )
-    
-    result = c.run(mount_cmd, warn=True)
-    if result.ok:
-        print(f"✨ Success! Google Drive mounted at {MOUNT_PATH}")
-    else:
-        print(f"❌ Mount failed. Please check 'rclone config' and remote name.")
+    MOUNT_PATH = "/opt/google_drive"
+    REMOTE_NAME = "gdrive"
+    REMOTE_FOLDER = "youtube_factory"
+
+    for host_def in targets:
+        # 只在 HK 角色节点执行
+        if role == 'hk' and 'kty.hk' not in host_def.get('host', ''):
+            continue
+        
+        conn = get_connection(host_def)
+        print(f"\n🚀 Checking mount on {conn.host}...")
+        
+        try:
+            with conn:
+                print(f"📁 Preparing mount point: {MOUNT_PATH}...")
+                conn.sudo(f"mkdir -p {MOUNT_PATH}")
+                conn.sudo(f"chown {conn.user}:{conn.user} {MOUNT_PATH}")
+
+                # 检查是否已挂载
+                check = conn.run(f"mount | grep {MOUNT_PATH}", warn=True, hide=True)
+                if check.ok:
+                    print(f"✅ {MOUNT_PATH} is already mounted.")
+                    continue
+
+                print("🚀 Mounting Google Drive via Rclone...")
+                mount_cmd = (
+                    f"rclone mount {REMOTE_NAME}:{REMOTE_FOLDER} {MOUNT_PATH} "
+                    f"--daemon --vfs-cache-mode writes --allow-other "
+                    f"--buffer-size 32M --dir-cache-time 12h"
+                )
+                
+                result = conn.run(mount_cmd, warn=True)
+                if result.ok:
+                    print(f"✨ Success! Google Drive mounted at {MOUNT_PATH} on {conn.host}")
+                else:
+                    print(f"❌ Mount failed on {conn.host}.")
+        except Exception as e:
+            print(f"❌ Connection error on {host_def.get('host')}: {e}")
