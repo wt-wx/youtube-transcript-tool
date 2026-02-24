@@ -6,30 +6,33 @@
 
 为了优化效率并降低风控风险，项目支持分布式部署模式：
 
-- **LA 节点 (Capture)**: 部署在离 YouTube 服务器近的 VPS（如洛杉矶），负责限速抓取、音频提取并搬运至云端存储（Google Drive/Rclone）。
-- **HK 节点 (Intelligence)**: 部署在计算资源充足的 VPS（如香港），负责从云端拉取音频，并运行 `Faster-Whisper` 推理生成高质量字幕。
-- **调度中心 (Google Sheets)**: 作为全局任务队列平衡各个节点的生产进度。
+- **LA 节点 (Capture)**: 负责 `yt-dlp` 限速抓取音频，通过 Rclone 搬运至 Google Drive。
+- **HK 节点 (ASR)**: 负责推理。采用 `Faster-Whisper` + 内存防崩溃优化（单次加载模式），适配 4G 内存 VPS。
+- **本地渲染矩阵 (Edge Cluster)**:
+    - **N3 (5600X/6750GRE)**: 分布式 TTS 渲染中心。
+    - **N5 (3700X/5700XT)**: NotebookLM 自动化/网页 Agent 流水线。
+    - **N4 (1600X/1060)**: 原生 CUDA 任务处理。
+    - **N2 (HP-G3/M1000M)**: 24/7 调度中转。
+- **调度中心 (Google Sheets)**: 结合 DeepSeek V3 / Gemini 2.0 实现 AI 改写、自动拟题并发布至双 Blogger 站点。
 
 ## 🌟 核心特性
 
-- **分布式生产线**：支持 LA/HK 双节点模式，自动同步状态。
-- **隐匿搬运**：LA 节点支持 `yt-dlp` 限速下载与随机等待，完美规避 YouTube 风控。
-- **高精度 AI 转录**：基于 `Faster-Whisper` 的 `large-v3` 或 `medium` 模型，针对中文优化了 `initial_prompt`。
-- **云端持久化**：支持通过 Google Drive 或 Rclone 挂载点进行音频中转，无需 VPS 长期占用硬盘。
+- **双 AI 引擎**：支持接入 DeepSeek V3 (性价比之选) 或 Gemini 2.0 Flash。
+- **内存防崩溃**：HK 节点通过 10GB Swap + 代码级模型持久化加载，彻底解决 ASR 推理时的 OOM 崩溃。
+- **ASR 自愈机制**：HK 节点具备“僵尸行修复”功能，能自动识别并翻转由于网络波动导致的状态卡死任务，确保发布序列完整。
+- **Blogger 全自动拟题**：Apps Script 自动实现“AI 拟题 + 正文 HTML 转换”，生成的博文具备标题感且排版整齐。
+- **工业级风控**：LA 节点具备随机休眠机制，避免 YouTube 账号及 IP 被封。
 
 ## 🏗️ 工业化部署与运维 (Ops Hub)
 
-本项目已实现高度自动化。建议在 **HP-G3 堡垒机** 上统一管理所有节点的部署与数据桥挂载。
+本项目符合 **Antigravity 3.0 运维规范**。建议在堡垒机使用 `fab` 统一分发负载。
 
 ### 1. 自动化运维任务清单
 
-在 Ops Hub 的 `ops/` 目录下（或根目录），使用 `fab` 命令：
-
 | 任务 | 命令 | 说明 |
 | :--- | :--- | :--- |
-| **安装 Rclone** | `fab install-rclone` | 在 HK 节点全自动下载并安装指定版本的 Rclone |
-| **挂载云盘** | `fab mount-drive` | 一键建立从 Google Drive 到 `/opt/google_drive` 的 FUSE 通道 |
-| **全量部署** | `fab deploy` | 同步最新代码、分发配置、安装 Venv、重启服务进程 |
+| **全量部署** | `fab deploy` | 同步最新单次加载代码、配置 Venv、重启 HK/LA 进程 |
+| **扩容 Swap** | (手动) | 执行 `sudo swapon /swapfile` 将 Swap 提升至 8GB+ |
 
 ### 2. 核心部署流程 (一键投产)
 
@@ -47,15 +50,15 @@
 
 ---
 
-### 3. 工业级运维排障矩阵 (Ops Hub Handbook)
+### 2. 工业级运维排障矩阵 (Ops Hub Handbook)
 
-| 症状 | 根因 | 修复动作 |
+| 故障现象 | 可能原因 | 快速对策 |
 | :--- | :--- | :--- |
-| **Blogger 没出文章** | 阶段三 Apps Script 未触发 | 进入 Sheets -> 扩展程序 -> Apps Script 手动点运行 |
-| **"missing scopes" 报错** | `token.json` 权限不足 | **删掉本地 token.json**，重新运行 `auth_setup.py` 并勾选 Sheets 复选框 |
-| **"Daemon timed out"** | 缺少 FUSE3 环境 | 在 HK 节点执行 `sudo apt install fuse3 -y` |
-| **CPU 100% 且系统卡死** | 模型过重 & Swap 抖动 | 在 `.env.hk` 中将 `WHISPER_MODEL_SIZE` 降级为 `small` 且开启 `int8` |
-| **LA 节点不抓取** | C 列 (Status) 为空 | 在 Sheets 中手动或批量将 C 列改为 `等待处理` |
+| **HK 节点程序消失** | OOM Killer 杀死进程 | 1. 检查 `dmesg`；2. 增加 Swap；3. 部署单次模型加载版代码 |
+| **Blogger 403 错误** | GCP 项目未关联 | 在 Apps Script 设置中手动绑定当前 GCP Project Number |
+| **Blogger 429 报错** | 发布配额触发频率限制 | 1. 增加 `Utilities.sleep` (15s+)；2. 换用 DeepSeek 代替 Gemini 免费版 |
+| **Blogger 404 错误** | Gemini 模型 ID 过期 | 使用 `debugGeminiKey` 获取最新 ID (如 `gemini-2.0-flash`) |
+| **发帖标题不匹配** | 传统 ID 拟题模式 | 升级到“自动拟题版”脚本，让 AI 在输出开头使用 `【标题：xxx】` 格式 |
 
 ---
 
@@ -142,6 +145,26 @@ python3 fetch_and_upload.py
 # HK 节点
 python3 transcribe_and_fill.py
 ```
+### 4. 稳健分发方案 (Anti-Ban Drip-Feed)
+为了彻底规避 Google 风控判定为垃圾内容，系统已进入 **“极度保守”** 生产模式：
+
+- **发布频率**：每天 **5 篇**（约每 3 小时 1 篇）。
+- **执行逻辑**：脚本每次仅处理 1 条记录，完成后立即退出。
+- **配置步骤**：
+  1. 打开 Apps Script，确保已部署 `dripFeedWorkflow`。
+  2. 点击编辑器左侧闹钟图标（触发器），添加函数 `dripFeedWorkflow`。
+  3. 设置为 **时间驱动** -> **小时定时器** -> **每 2 小时** 或 **每 4 小时** 执行一次。
+  4. 检查日志，确保脚本在非发布时间（22:00 - 08:00）自动静默。
+
+## 🚀 下一步：自动化播客工厂 (Podcast Factory)
+
+目前项目已成功覆盖“视频 -> 图文”链路。接下来的重点是利用图文基座，拓展音频资产矩阵：
+
+- **NotebookLM 自动化**：通过 Browser Agent 实现 NotebookLM "Audio Overview" 的自动生成，打造高保真 AI 对谈播客。
+- **纯 API 播客管线**：DeepSeek 角色化剧本 + 品牌级 TTS (OpenAI TTS/Fish Speech)，实现播客全流程无人值守发布。
+- **RSS 自动分发**：构建专有的音频 RSS 服务，一键分发至 Apple Podcast / Spotify。
+
+---
 MIT License
 
 https://geniux.net

@@ -34,7 +34,12 @@ def run_worker():
                 status = row[2] if len(row) > 2 else ""
                 transcript_cell = row[4] if len(row) > 4 else ""
                 
-                if status == "音频已就绪" and not transcript_cell:
+                if status == "音频已就绪":
+                    if transcript_cell:
+                        print(f"🔎 发现僵尸行 {i}: 已有字幕但状态未翻转，正在修复...")
+                        production_sheet.update_cell(i, 3, "等待处理")
+                        continue
+
                     print(f"--- 正在转录: {video_id} ---")
                     audio_dir = Config.RCLONE_MOUNT_PATH if Config.RCLONE_MOUNT_PATH else Config.LOCAL_TEMP_DIR
                     audio_path = os.path.join(audio_dir, f"{video_id}.mp3")
@@ -46,6 +51,7 @@ def run_worker():
                     segments, _ = model.transcribe(audio_path, beam_size=5)
                     final_text = " ".join([s.text for s in segments])
                     
+                    # 使用批量更新或确保顺序
                     production_sheet.update_cell(i, 5, final_text)
                     production_sheet.update_cell(i, 3, "等待处理") 
                     print(f"✅ 完成行 {i}")
