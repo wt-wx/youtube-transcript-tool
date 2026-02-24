@@ -26,7 +26,8 @@ class Config:
     WHISPER_MODEL_SIZE = os.getenv('WHISPER_MODEL_SIZE', 'medium')
     DEVICE = os.getenv('DEVICE', 'cpu')
     COMPUTE_TYPE = os.getenv('COMPUTE_TYPE', 'int8')
-    TRANSCRIPTION_LIMIT = int(os.getenv('TRANSCRIPTION_LIMIT', 5))
+    TRANSCRIPTION_LIMIT = int(os.getenv('TRANSCRIPTION_LIMIT', 20))
+    CPU_THREADS = int(os.getenv('CPU_THREADS', 4))
     
     # 路径配置
     LOCAL_TEMP_DIR = os.getenv('LOCAL_TEMP_DIR', 'temp_audio')
