@@ -23,10 +23,13 @@ def fetch_and_upload():
         video_url = row[0]
         video_id = row[1]
         status = row[2] if len(row) > 2 else ""
+        transcript_cell = row[4] if len(row) > 4 else ""
         
-        # 仅处理被人工打上"等待处理"标签的行 (防盲目抓取代价)
+        # 🛡️ 核心修复：仅处理“等待处理”且“字幕为空”的行
+        # 如果字幕不为空，说明 HK 节点已处理完，当前状态是为了触发 AI 发布，LA 节点必须跳过。
         if video_id and status == "等待处理":
-            if "音频已就绪" in status:
+            if transcript_cell:
+                # 这是一个已转录完成、等待 AI 处理的任务，直接跳过
                 continue
 
             print(f"\n--- 正在处理: {video_id} ---")
