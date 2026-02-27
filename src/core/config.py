@@ -22,6 +22,10 @@ class Config:
     MIN_DELAY = int(os.getenv('MIN_DELAY', 30))
     MAX_DELAY = int(os.getenv('MAX_DELAY', 120))
     
+    # 视频采集开关 (对齐 PRD)
+    COLLECT_FULL_VIDEO = os.getenv('COLLECT_FULL_VIDEO', 'False').lower() == 'true'
+    VIDEO_DRIVE_FOLDER_ID = os.getenv('VIDEO_DRIVE_FOLDER_ID', '') # 视频备份专用目录 ID
+    
     # HK 节点参数
     WHISPER_MODEL_SIZE = os.getenv('WHISPER_MODEL_SIZE', 'medium')
     DEVICE = os.getenv('DEVICE', 'cpu')

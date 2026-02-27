@@ -32,19 +32,13 @@ def fetch_and_upload():
                 # 这是一个已转录完成、等待 AI 处理的任务，直接跳过
                 continue
 
-            print(f"\n--- 正在处理: {video_id} ---")
-            local_path = os.path.join(Config.LOCAL_TEMP_DIR, f"{video_id}.mp3")
-            
-            # yt-dlp 配置 (限速控制)
-            ydl_opts = {
+            # --- 1. 下载音频 (ASR 必备) ---
+            audio_path = os.path.join(Config.LOCAL_TEMP_DIR, f"{video_id}.mp3")
+            ydl_opts_audio = {
                 'format': 'm4a/bestaudio/best',
                 'outtmpl': os.path.join(Config.LOCAL_TEMP_DIR, f'{video_id}.%(ext)s'),
-                'ratelimit': 5242880, # 5M
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '128',
-                }],
+                'ratelimit': 5242880, 
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '128'}],
                 'quiet': True,
             }
 
@@ -54,20 +48,39 @@ def fetch_and_upload():
                 print(f"⏳ 安全等待 {delay:.1f} 秒...")
                 time.sleep(delay)
                 
-                print(f"📥 正在下载 (限速 {Config.RATE_LIMIT})...")
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                print(f"📥 正在下载音频 (限速 {Config.RATE_LIMIT})...")
+                with yt_dlp.YoutubeDL(ydl_opts_audio) as ydl:
                     ydl.download([video_url])
                 
-                # 上传逻辑
+                # 上传音频
                 if Config.DRIVE_FOLDER_ID:
-                    google.upload_to_drive(local_path, f"{video_id}.mp3")
-                    if os.path.exists(local_path):
-                        os.remove(local_path)
-                    print(f"🧹 本地缓存已清理")
+                    google.upload_to_drive(audio_path, f"{video_id}.mp3")
+                    if os.path.exists(audio_path): os.remove(audio_path)
                 elif Config.RCLONE_MOUNT_PATH:
-                    dest_path = os.path.join(Config.RCLONE_MOUNT_PATH, f"{video_id}.mp3")
-                    os.rename(local_path, dest_path)
-                    print(f"📦 已移动至 Rclone 挂载点")
+                    dest_audio = os.path.join(Config.RCLONE_MOUNT_PATH, f"{video_id}.mp3")
+                    os.rename(audio_path, dest_audio)
+
+                # --- 2. 下载视频 (可选备份) ---
+                if Config.COLLECT_FULL_VIDEO:
+                    print(f"🎬 [PRD 扩展] 正在采集完整视频...")
+                    video_path = os.path.join(Config.LOCAL_TEMP_DIR, f"{video_id}.mp4")
+                    ydl_opts_video = {
+                        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                        'outtmpl': video_path,
+                        'ratelimit': 5242880,
+                        'quiet': True,
+                    }
+                    with yt_dlp.YoutubeDL(ydl_opts_video) as ydl:
+                        ydl.download([video_url])
+                    
+                    # 上传视频到专用目录
+                    if Config.VIDEO_DRIVE_FOLDER_ID:
+                        google.upload_to_drive(video_path, f"{video_id}.mp4", folder_id=CONFIG.VIDEO_DRIVE_FOLDER_ID)
+                        if os.path.exists(video_path): os.remove(video_path)
+                    elif Config.RCLONE_MOUNT_PATH:
+                        dest_video = os.path.join(Config.RCLONE_MOUNT_PATH, "full_videos", f"{video_id}.mp4")
+                        os.makedirs(os.path.dirname(dest_video), exist_ok=True)
+                        os.rename(video_path, dest_video)
 
                 # 更新 Sheets
                 production_sheet.update_cell(i, 3, "音频已就绪")
