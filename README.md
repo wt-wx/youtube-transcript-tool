@@ -13,11 +13,13 @@
 ## 🌟 核心特性
 
 - **LLM 路由军团**：集成 DeepSeek, Qwen (Mulerouter), GLM, Kimi, 豆包。支持敏感词拦截自动切流，实现 100% 发布自愈。
-- **多厂弹性路由 3.3**：DeepSeek, Qwen 3.5 Plus, GLM-4.7 全量接入，集成内容拦截自动切流与中转站（New-API/LiteLLM）支持。
-- **视觉工厂 V2**：智谱 GLM-Image 驱动，自动化封面生成、GD 归档及外链注入。
-- **Headless CMS 双轨分发**：彻底移除 WP，实现 Blogger + Contentful/Sanity/Prismic 的全量并发推送能力。
-- **方案 A 独立供稿**：三渠道（个人博主、复刻博主、科技新闻）分别调用独立 Prompt，由 LLM 驱动完全差异化的内容输出。
-- **全量视频采集 (LA Node)**：支持 MP4 原片与 ASR 音频的双轨采集存证。完整 MP4 视频并归档至云端备份目录。
+- **多厂弹性路由 3.5 (防风控)**：全量接入 DeepSeek, Qwen, GLM-4.7，并新增 MuleRouter (Gemini 2.0 / GPT-4o-mini) 作为强力降级备用节点，完美规避国内模型对地缘政治等内容的敏感拦截。
+- **视觉工厂 V4 (智谱接管)**：图像生成职责全权交由智谱 GLM-Image 负责，移除复杂的异步轮询依赖。配合 `DriveApp` 下载归档，实现封面图极速生成并获取公开直链。
+- **极简双轨分发**：彻底减负，移除所有 Headless CMS（Contentful/Sanity/Prismic）逻辑，专精于 Blogger A/B 双站的差异化投递（个人分析稿 + 纯粹复刻稿）。
+- **Slug 幂等性自愈**：全平台采用 `yt-${videoId}-${Date.now()}` 命名规范，规避重跑冲突。
+- **Blogger 熔断保护 (Safe Mode)**：每日双站发布限额上限（Default: 5篇/站），通过 `ScriptProperties` 跨环境持久化计数，触达超发红线后自动静默挂起，保障账号长期安全。
+- **全量视频采集 (LA Node)**：支持 MP4 原片与 ASR 音频的双轨采集存证。
+- **自愈式分发逻辑**：针对 Contentful / Sanity / Prismic 的认证与字段解析优化，配备详细故障日志。
 - **内存防崩溃**：HK 节点通过 10GB Swap + 代码级模型持久化加载，彻底解决 ASR 推理时的 OOM 崩溃。
 - **ASR 自愈机制**：HK 节点具备“僵尸行修复”功能，能自动识别并翻转由于网络波动导致的状态卡死任务，确保发布序列完整。
 - **Blogger 全自动拟题**：Apps Script 自动实现“AI 拟题 + 正文 HTML 转换”，生成的博文具备标题感且排版整齐。
@@ -102,6 +104,11 @@ python3 transcribe_and_fill.py
   2. 点击编辑器左侧闹钟图标（触发器），添加函数 `dripFeedWorkflow`。
   3. 设置为 **时间驱动** -> **小时定时器** -> **每 2 小时** 或 **每 4 小时** 执行一次。
   4. 检查日志，确保脚本在非发布时间（22:00 - 08:00）自动静默。
+
+### 5. Drive 权限与授权指引
+Apps Script 中的 `generateImage` 依赖写入图片到 Google Drive 并在发帖前获取公开分享链接。为确保授权完整：
+- 请确保在应用配置（编辑器设置勾选"在编辑器中显示 appsscript.json"）中加入 `"https://www.googleapis.com/auth/drive"` 作用域。
+- 若无法正常触发授权弹窗，可以在代码编辑器左上方下拉菜单中选择运行专属调试函数 `forceDriveAuth`，手动强制唤起并允许所有高级权限。
 
 ## 🚀 下一步：自动化播客工厂 (Podcast Factory)
 
