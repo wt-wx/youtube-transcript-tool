@@ -4,3 +4,6 @@ oauth2client
 google-api-python-client
 python-dotenv
 faster-whisper
+psutil
+fastapi
+uvicorn[standard]

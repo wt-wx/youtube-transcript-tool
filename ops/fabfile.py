@@ -209,3 +209,53 @@ def mount_drive(c, group, role):
                     print(f"❌ Mount failed on {conn.host}.")
         except Exception as e:
             print(f"❌ Connection error on {host_def.get('host')}: {e}")
+
+@task
+def deploy_probe(c, group, role='la'):
+    """
+    部署系统监控探针 (Probe)。
+    Usage: fab -f ops/fabfile.py deploy-probe --group=bwg_workers --role=la
+    """
+    targets = resolve_targets(group)
+    if not targets:
+        print("❌ No targets found. Aborting.")
+        return
+
+    for host_def in targets:
+        if role == 'la' and 'bwg.la' not in host_def.get('host', ''):
+            continue
+        
+        conn = get_connection(host_def)
+        print(f"\n🚀 Deploying Probe on {conn.host}:{conn.port}...")
+        
+        try:
+            with conn:
+                # 1. 确保目录存在
+                conn.run(f"mkdir -p {REMOTE_ROOT}")
+                
+                # 2. 上传代码
+                print(f"📁 Uploading probe.py...")
+                local_probe = os.path.join(os.path.dirname(_cur_dir), 'probe.py')
+                conn.put(local_probe, remote=f"{REMOTE_ROOT}/probe.py")
+
+
+                # 3. 更新依赖
+
+                venv_dir = f"{REMOTE_ROOT}/venv"
+                conn.run(f"{venv_dir}/bin/pip install psutil fastapi uvicorn[standard]")
+
+                # 4. 启动服务 (端口 9527)
+                print(f"🔄 Restarting Probe service on {conn.host}...")
+                python_bin = f"{venv_dir}/bin/python"
+                conn.run("pkill -f probe.py", warn=True)
+                
+                with conn.cd(REMOTE_ROOT):
+                    # 运行 probe.py
+                    cmd = f"nohup {python_bin} probe.py > probe.log 2>&1 </dev/null & disown"
+                    conn.run(cmd, hide=True, asynchronous=True)
+                
+                print(f"✨ Probe deployment COMPLETED. Access at http://{conn.host}:9527")
+                
+        except Exception as e:
+            print(f"❌ Probe Deployment Failed on {conn.host}: {str(e)}")
+
