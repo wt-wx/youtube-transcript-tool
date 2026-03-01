@@ -51,13 +51,14 @@ class GoogleClient:
         spreadsheet = gc.open(Config.SPREADSHEET_NAME)
         return spreadsheet.worksheet(Config.SHEET_NAME)
 
-    def upload_to_drive(self, local_path, filename):
+    def upload_to_drive(self, local_path, filename, folder_id=None):
         """将文件上传至 Google Drive 指定文件夹"""
         drive_service = self.get_drive_service()
         file_metadata = {'name': filename}
         
-        if Config.DRIVE_FOLDER_ID:
-            file_metadata['parents'] = [Config.DRIVE_FOLDER_ID]
+        target_folder = folder_id if folder_id else Config.DRIVE_FOLDER_ID
+        if target_folder:
+            file_metadata['parents'] = [target_folder]
             
         media = MediaFileUpload(local_path, mimetype='audio/mpeg', resumable=True)
         file = drive_service.files().create(

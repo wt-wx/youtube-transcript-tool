@@ -75,7 +75,7 @@ def fetch_and_upload():
                     
                     # 上传视频到专用目录
                     if Config.VIDEO_DRIVE_FOLDER_ID:
-                        google.upload_to_drive(video_path, f"{video_id}.mp4", folder_id=CONFIG.VIDEO_DRIVE_FOLDER_ID)
+                        google.upload_to_drive(video_path, f"{video_id}.mp4", folder_id=Config.VIDEO_DRIVE_FOLDER_ID)
                         if os.path.exists(video_path): os.remove(video_path)
                     elif Config.RCLONE_MOUNT_PATH:
                         dest_video = os.path.join(Config.RCLONE_MOUNT_PATH, "full_videos", f"{video_id}.mp4")
