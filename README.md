@@ -13,9 +13,11 @@
 ## 🌟 核心特性
 
 - **LLM 路由军团**：集成 DeepSeek, Qwen (Mulerouter), GLM, Kimi, 豆包。支持敏感词拦截自动切流，实现 100% 发布自愈。
-- **视觉资产工厂**：集成 GLM CogView-3-Plus，根据博文主题自动生成 AI 封面图并同步至 Google Drive。
-- **双轨制分发**：支持 Blogger 与 WordPress 同步发布，内置 SEO 标签自动提取与标签云优化。
-- **全量视频采集**：LA 节点支持在 ASR 流程外，可选采集完整 MP4 视频并归档至云端备份目录。
+- **多厂弹性路由 3.3**：DeepSeek, Qwen 3.5 Plus, GLM-4.7 全量接入，集成内容拦截自动切流与中转站（New-API/LiteLLM）支持。
+- **视觉工厂 V2**：智谱 GLM-Image 驱动，自动化封面生成、GD 归档及外链注入。
+- **Headless CMS 双轨分发**：彻底移除 WP，实现 Blogger + Contentful/Sanity/Prismic 的全量并发推送能力。
+- **方案 A 独立供稿**：三渠道（个人博主、复刻博主、科技新闻）分别调用独立 Prompt，由 LLM 驱动完全差异化的内容输出。
+- **全量视频采集 (LA Node)**：支持 MP4 原片与 ASR 音频的双轨采集存证。完整 MP4 视频并归档至云端备份目录。
 - **内存防崩溃**：HK 节点通过 10GB Swap + 代码级模型持久化加载，彻底解决 ASR 推理时的 OOM 崩溃。
 - **ASR 自愈机制**：HK 节点具备“僵尸行修复”功能，能自动识别并翻转由于网络波动导致的状态卡死任务，确保发布序列完整。
 - **Blogger 全自动拟题**：Apps Script 自动实现“AI 拟题 + 正文 HTML 转换”，生成的博文具备标题感且排版整齐。
