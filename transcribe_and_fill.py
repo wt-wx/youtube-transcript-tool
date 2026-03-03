@@ -33,7 +33,7 @@ def run_worker():
                 status = str(row[2]).strip() if len(row) > 2 else ""
                 transcript_cell = str(row[4]).strip() if len(row) > 4 else ""
                 
-                if status == "音频已就绪":
+                if status in ["音频已就绪", "音视频已就绪"]:
                     if transcript_cell:
                         zombie_rows.append(i)
                     else:
