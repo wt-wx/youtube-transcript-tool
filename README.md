@@ -8,7 +8,7 @@
 
 - **LA 节点 (Capture)**: 负责 `yt-dlp` 限速抓取音频，通过 Rclone 搬运至 Google Drive。
 - **HK 节点 (ASR)**: 负责推理。采用 `Faster-Whisper` + 内存防崩溃优化（单次加载模式），适配 4G 内存 VPS。
-- **调度中心 (Google Sheets)**: 结合 DeepSeek V3 / Gemini 2.0 实现 AI 改写、自动拟题并发布至双 Blogger 站点。
+- **调度中心 (Google Sheets)**: 结合核心模型实现 AI 改写、自动拟题并发布至指定站点。
 
 ## 🌟 核心特性
 

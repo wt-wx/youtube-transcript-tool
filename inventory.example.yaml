@@ -1,21 +1,21 @@
 groups:
   internal_hub:
-    desc: "XXXX Primary Hub (Bastion Host)"
-    user: root
-    port: 22
+    desc: "Management Bastion Host"
+    user: [USER]
+    port: [PORT]
     hosts:
-      - localhost
+      - [LOCAL_IP]
 
   external_nodes:
-    desc: "Geniux External Nodes"
-    key_filename: /root/.ssh/xxxxxx
+    desc: "Distributed Worker Nodes"
+    key_filename: [PATH_TO_PRIVATE_KEY]
     hosts:
-      # Node 1: xxx Node
-      - host: xxxx.net
-        user: xxxx
-        port: 22
+      # Node 1: Capture Node
+      - host: [NODE_1_IP_OR_DOMAIN]
+        user: [USER]
+        port: [PORT]
 
-      # Node 2:XXX Node
-      - host: XXXXX.net
-        user: XXX
-        port: 22
+      # Node 2: ASR Node
+      - host: [NODE_2_IP_OR_DOMAIN]
+        user: [USER]
+        port: [PORT]

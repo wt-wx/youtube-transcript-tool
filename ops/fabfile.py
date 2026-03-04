@@ -79,9 +79,9 @@ def deploy(c, group, role):
         return
 
     for host_def in targets:
-        if role == 'la' and 'bwg.la' not in host_def.get('host', ''):
+        if role == 'la' and '[LA_NODE_IDENTIFIER]' not in host_def.get('host', ''):
             continue
-        if role == 'hk' and 'kty.hk' not in host_def.get('host', ''):
+        if role == 'hk' and '[HK_NODE_IDENTIFIER]' not in host_def.get('host', ''):
             continue
 
         conn = get_connection(host_def)
@@ -177,7 +177,7 @@ def mount_drive(c, group, role):
 
     for host_def in targets:
         # 只在 HK 角色节点执行
-        if role == 'hk' and 'kty.hk' not in host_def.get('host', ''):
+        if role == 'hk' and '[HK_NODE_IDENTIFIER]' not in host_def.get('host', ''):
             continue
         
         conn = get_connection(host_def)
@@ -222,7 +222,7 @@ def deploy_probe(c, group, role='la'):
         return
 
     for host_def in targets:
-        if role == 'la' and 'bwg.la' not in host_def.get('host', ''):
+        if role == 'la' and '[LA_NODE_IDENTIFIER]' not in host_def.get('host', ''):
             continue
         
         conn = get_connection(host_def)

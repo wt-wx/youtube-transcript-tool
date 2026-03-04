@@ -16,21 +16,26 @@ def main():
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
         print("✅ 找到现有的 token.json 文件。")
         
-    if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            print("🔄 token 已过期，正在自动刷新...")
-            creds.refresh(Request())
-        else:
+            print("🔄 token 已过期且无法自动刷新，即将尝试重新获取授权...")
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"⚠️  刷新令牌已失效 ({e})，正在切换到正式授权流程...")
+                creds = None # 强制进入下面的 full flow
+        
+        if not creds or not creds.valid:
             if not os.path.exists('client_secret.json'):
                 print("\n❌ 错误：未找到【client_secret.json】文件。")
                 print("\n【准备步骤】:")
                 print("1. 请打开 Google Cloud Console (https://console.cloud.google.com/)。")
-                print("2. 进入你的项目 -> 左侧菜单「API与服务」->「数据获取/OAuth 同意屏幕 (OAuth consent screen)」。")
-                print("   - 选择「外部 (External)」，填写必填项后保存。(测试阶段即可，记得将你自己的邮箱加入 Test users)。")
-                print("3. 点击左侧「凭据 (Credentials)」-> 顶部「创建凭据 (Create Credentials)」-> 选择「OAuth 客户端 ID」。")
+                print("2. 点击左侧菜单「API 和服务」->「OAuth 权限请求页面」。")
+                print("   - 选择「外部 (External)」，填写必填项(应用名称、支持电子邮件、开发者联系信息)后保存。")
+                print("   - 在测试用户 (Test users) 中，务必添加你自己正在使用的 Gmail 邮箱。")
+                print("3. 点击左侧菜单「凭据」-> 顶部「+ 创建凭据」-> 选择「OAuth 客户端 ID」。")
                 print("   - 应用类型务必选择「桌面应用 (Desktop App)」。")
-                print("4. 创建完成后，点击右侧的下载按钮，将下载的 JSON 文件重命名为「client_secret.json」，放在本项目根目录中。")
-                print("5. 准备好后，再次运行本脚本即可。\n")
+                print("4. 创建完成后，在列表右侧点击「下载 JSON」图标，将文件重命名为「client_secret.json」，放在本项目根目录中。")
+                print("5. 准备好后，重新运行 python auth_setup.py 即可。\n")
                 return
                 
             print("🌐 即将拉起浏览器进行 Google 账号授权...")
