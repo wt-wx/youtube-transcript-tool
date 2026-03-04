@@ -5,9 +5,10 @@ import uvicorn
 from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
+from src.core.config import Config
 from typing import Dict, Any
 
-app = FastAPI(title="Geniux Probe")
+app = FastAPI(title=f"Geniux Probe - {Config.NODE_NAME}")
 
 # 基础配置
 START_TIME = time.time()
@@ -35,6 +36,7 @@ def get_sys_info() -> Dict[str, Any]:
     
     return {
         "status": "online",
+        "node_name": Config.NODE_NAME,
         "timestamp": datetime.now().isoformat(),
         "uptime": uptime_seconds,
         "boot_time": boot_time,
@@ -124,10 +126,10 @@ HTML_TEMPLATE = """
         <!-- Header -->
         <header class="flex justify-between items-center mb-8">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight text-white mb-1">Geniux Node Probe</h1>
+                <h1 class="text-3xl font-bold tracking-tight text-white mb-1" x-text="'Geniux Node ' + data.node_name">Geniux Node Probe</h1>
                 <p class="text-slate-400 flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-green-500 status-pulse"></span>
-                    LA 节点实时监控中
+                    <span x-text="data.node_name + ' 节点实时监控中'">LA 节点实时监控中</span>
                 </p>
             </div>
             <div class="glass px-4 py-2 flex items-center gap-4">
@@ -254,6 +256,7 @@ HTML_TEMPLATE = """
         function probeApp() {
             return {
                 data: {
+                    node_name: '...',
                     uptime: 0,
                     boot_time: '-',
                     cpu: { percent: 0, cores: 0, load: [0,0,0] },

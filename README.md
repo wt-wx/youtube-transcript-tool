@@ -27,7 +27,7 @@
 
 ## 🏗️ 工业化部署与运维 (Ops Hub)
 
-本项目符合 **Antigravity 3.0 运维规范**。建议在堡垒机使用 `fab` 统一分发负载。
+本项目符合 **[INTERNAL_OPS_SPEC]** 运维规范。建议在堡垒机使用 `fab` 统一分发负载。
 
 ### 1. 自动化运维任务清单
 
@@ -42,7 +42,7 @@
 2. **环境对齐**：在 HK 节点运行 `sudo apt install fuse3 -y`（Debian 12/13 必备）。
 3. **一键挂载**：
    ```bash
-   # 在 HP-G3 的 ops 目录下
+   # 在 [DEPLOY_TARGET] 的 ops 目录下
    fab mount-drive --group external_nodes --role hk
    ```
 4. **全量启动**：

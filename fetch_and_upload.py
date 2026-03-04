@@ -2,8 +2,24 @@ import os
 import time
 import random
 import yt_dlp
+import re
 from src.core.config import Config
 from src.core.google_api import GoogleClient
+
+def extract_video_id(url):
+    """从 YouTube URL 中提取 Video ID"""
+    if not url:
+        return None
+    patterns = [
+        r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
+        r'be\/([0-9A-Za-z_-]{11})',
+        r'shorts\/([0-9A-Za-z_-]{11})'
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
 
 def fetch_and_upload():
     """LA 节点逻辑：下载 + 上传云端"""
@@ -20,7 +36,13 @@ def fetch_and_upload():
     
     # 🔍 第一遍扫描：全局活性探测与空盘统计
     for i, row in enumerate(records[1:], start=2):
+        video_url = row[0] if len(row) > 0 else ""
         video_id = row[1] if len(row) > 1 else ""
+        
+        # 如果没有 ID 但有 URL，尝试提取
+        if not video_id and video_url:
+            video_id = extract_video_id(video_url)
+            
         status = row[2] if len(row) > 2 else ""
         transcript_cell = row[4] if len(row) > 4 else ""
 
@@ -65,8 +87,16 @@ def fetch_and_upload():
         if processed_count >= Config.FETCH_LIMIT:
             break
             
-        video_url = row[0]
+        video_url = row[0] if len(row) > 0 else ""
         video_id = row[1] if len(row) > 1 else ""
+        
+        # 🛡️ 提取并持久化 Missing ID
+        if not video_id and video_url:
+            video_id = extract_video_id(video_url)
+            if video_id:
+                print(f"📌 检测到缺失 ID (行 {i}): 自动提取为 {video_id}")
+                production_sheet.update_cell(i, 2, video_id)
+        
         status = row[2] if len(row) > 2 else ""
         transcript_cell = row[4] if len(row) > 4 else ""
         

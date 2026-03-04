@@ -8,6 +8,9 @@ class Config:
     # Google Cloud 凭据
     CREDENTIALS_FILE = os.getenv('CREDENTIALS_FILE', 'credentials.json')
     
+    # 节点标识
+    NODE_NAME = os.getenv('NODE_NAME', 'LA')
+    
     # 表格配置
     SPREADSHEET_NAME = os.getenv('SPREADSHEET_NAME', 'YouTube_Blogger_Automation')
     SHEET_NAME = os.getenv('SHEET_NAME', 'Production')

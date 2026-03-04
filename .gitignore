@@ -7,6 +7,7 @@ __pycache__/
 
 # Secrets & Config
 .env
+.env.*
 *.json
 *.gs
 ! .env.example

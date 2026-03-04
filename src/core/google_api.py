@@ -5,6 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from src.core.config import Config
+from google.auth.transport.requests import Request
 
 class GoogleClient:
     _instance = None
@@ -28,13 +29,29 @@ class GoogleClient:
         # 1. 优先使用个人用户 OAuth 授权的 token.json
         if os.path.exists('token.json'):
             cls._user_creds = Credentials.from_authorized_user_file('token.json', scope)
-        # 2. 回退使用 Service Account 凭据保护兼容性
-        elif os.path.exists(Config.CREDENTIALS_FILE):
+            
+            # 🔄 自动刷新逻辑
+            if not cls._user_creds.valid:
+                if cls._user_creds.expired and cls._user_creds.refresh_token:
+                    try:
+                        cls._user_creds.refresh(Request())
+                        # 保存刷新后的 token
+                        with open('token.json', 'w') as token_file:
+                            token_file.write(cls._user_creds.to_json())
+                        print("✅ Google API Token 自动刷新成功")
+                    except Exception as e:
+                        print(f"❌ Google API Token 刷新失败: {e}")
+                        # 如果刷新失败，清除 _user_creds 让它回退
+                        cls._user_creds = None
+        
+        # 2. 回退使用 Service Account 凭据
+        if not cls._user_creds and os.path.exists(Config.CREDENTIALS_FILE):
             cls._creds = ServiceAccountCredentials.from_json_keyfile_name(
                 Config.CREDENTIALS_FILE, scope
             )
-        else:
-            raise FileNotFoundError(f"未找到 token.json 或 {Config.CREDENTIALS_FILE} 进行 API 授权。")
+        
+        if not cls._user_creds and not cls._creds:
+            raise FileNotFoundError(f"未找到有效 token.json 或 {Config.CREDENTIALS_FILE}。")
 
     def get_sheets_client(self):
         if self._user_creds:
