@@ -120,5 +120,4 @@ Apps Script 中的 `generateImage` 依赖写入图片到 Google Drive 并在发�
 
 ---
 MIT License
-
-https://geniux.net
+https://github.com/Terry-/youtube-transcript-tool.git
